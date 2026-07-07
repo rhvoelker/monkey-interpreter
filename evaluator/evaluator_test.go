@@ -85,14 +85,7 @@ func TestStringConcatenation(t *testing.T) {
 	input := `"Hello" + " " + "World!"`
 
 	evaluated := testEval(input)
-	str, ok := evaluated.(*object.String)
-	if !ok {
-		t.Fatalf("object is not String. got=%T (%+v)", evaluated, evaluated)
-	}
-
-	if str.Value != "Hello World!" {
-		t.Errorf("String has wrong value. expected=%q, got=%q", "Hello World!", str.Value)
-	}
+	testStringObject(t, evaluated, "Hello World!")
 }
 
 func TestStringComparison(t *testing.T) {
@@ -303,6 +296,31 @@ addTwo(2);
 	testIntegerObject(t, testEval(input), 4)
 }
 
+func TestBuiltinFunctions(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected interface{}
+	}{
+		{`len("")`, 0},
+		{`len("four")`, 4},
+		{`len("hello world")`, 11},
+		{"len(\"hello\tworld\")", 11},
+		{`len(1)`, "argument to `len` not supported, got INTEGER"},
+		{`len("one", "two")`, "wrong number of arguments. expected=1, got=2"},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+
+		switch expected := tt.expected.(type) {
+		case int:
+			testIntegerObject(t, evaluated, int64(expected))
+		case string:
+			testErrorObject(t, evaluated, expected)
+		}
+	}
+}
+
 func testEval(input string) object.Object {
 	l := lexer.New(input)
 	p := parser.New(l)
@@ -336,6 +354,36 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) bool {
 
 	if result.Value != expected {
 		t.Errorf("object has wrong value. expected=%t, got=%t", expected, result.Value)
+		return false
+	}
+
+	return true
+}
+
+func testStringObject(t *testing.T, obj object.Object, expected string) bool {
+	result, ok := obj.(*object.String)
+	if !ok {
+		t.Fatalf("object is not String. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	if result.Value != expected {
+		t.Errorf("String has wrong value. expected=%q, got=%q", expected, result.Value)
+		return false
+	}
+
+	return true
+}
+
+func testErrorObject(t *testing.T, obj object.Object, expectedMessage string) bool {
+	result, ok := obj.(*object.Error)
+	if !ok {
+		t.Errorf("object is not Error. got=%T (%+v)", obj, obj)
+		return false
+	}
+
+	if result.Message != expectedMessage {
+		t.Errorf("wrong error message. expected=%q, got=%q", expectedMessage, result.Message)
 		return false
 	}
 
