@@ -42,23 +42,23 @@ func Test_Eval_Booleans(t *testing.T) {
 	}{
 		{"true", true},
 		{"false", false},
-		//{"1 < 2", true},
-		//{"1 > 2", false},
-		//{"1 < 1", false},
-		//{"1 > 1", false},
-		//{"1 == 1", true},
-		//{"1 != 1", false},
-		//{"1 == 2", false},
-		//{"1 != 2", true},
-		//{"true == true", true},
-		//{"false == false", true},
-		//{"true == false", false},
-		//{"true != false", true},
-		//{"false != true", true},
-		//{"(1 < 2) == true", true},
-		//{"(1 < 2) == false", false},
-		//{"(1 > 2) == true", false},
-		//{"(1 > 2) == false", true},
+		{"1 < 2", true},
+		{"1 > 2", false},
+		{"1 < 1", false},
+		{"1 > 1", false},
+		{"1 == 1", true},
+		{"1 != 1", false},
+		{"1 == 2", false},
+		{"1 != 2", true},
+		{"true == true", true},
+		{"false == false", true},
+		{"true == false", false},
+		{"true != false", true},
+		{"false != true", true},
+		{"(1 < 2) == true", true},
+		{"(1 < 2) == false", false},
+		{"(1 > 2) == true", false},
+		{"(1 > 2) == false", true},
 	}
 
 	for _, tt := range tests {
@@ -86,6 +86,42 @@ func Test_Eval_Bang_Operator(t *testing.T) {
 	}
 }
 
+func Test_Eval_Error_Handling(t *testing.T) {
+	tests := []struct {
+		input           string
+		expectedMessage string
+	}{
+		{"5 + true;", "type mismatch: INTEGER + BOOLEAN"},
+		//{"5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"},
+		{"-true", "unknown operator: -BOOLEAN"},
+		{"true + false", "unknown operator: BOOLEAN + BOOLEAN"},
+		//{"5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"},
+		//		{"if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"},
+		//		{
+		//			`
+		//if (10 > 1) {
+		//  if (10 > 1) {
+		//    return true + false;
+		//  }
+		//
+		//  return 1;
+		//}
+		//`,
+		//			"unknown operator: BOOLEAN + BOOLEAN",
+		//		},
+		//{"foobar", "identifier not found: foobar"},
+		//{`"Hello" - "World"`, "unknown operator: STRING - STRING"},
+		//{`"Hello" * "World"`, "unknown operator: STRING * STRING"},
+		//{`"Hello" / "World"`, "unknown operator: STRING / STRING"},
+		//{`{"name": "Monkey"}[fn(x) { x }];`, "unusable as hash key: FUNCTION"},
+	}
+
+	for _, tt := range tests {
+		evaluated := testEval(tt.input)
+		testErrorObject(t, evaluated, tt.expectedMessage)
+	}
+}
+
 func testEval(input string) object.Object {
 	eval := New(input, object.NewEnvironment())
 	return eval.Eval()
@@ -101,4 +137,10 @@ func testBooleanObject(t *testing.T, obj object.Object, expected bool) {
 	assert.IsType(t, &object.Boolean{}, obj)
 	result := obj.(*object.Boolean).Value
 	assert.Equal(t, expected, result)
+}
+
+func testErrorObject(t *testing.T, obj object.Object, expectedMessage string) {
+	assert.IsType(t, &object.Error{}, obj)
+	message := obj.(*object.Error).Message
+	assert.Equal(t, expectedMessage, message)
 }

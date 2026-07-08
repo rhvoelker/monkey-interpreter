@@ -5,6 +5,8 @@ import (
 	"monkey-antlr/object"
 	"monkey-antlr/parser"
 	"strconv"
+
+	"github.com/antlr4-go/antlr/v4"
 )
 
 var (
@@ -66,14 +68,36 @@ func (l *ProgramListener) ExitUnaryOperatorExpression(c *parser.UnaryOperatorExp
 }
 
 func (l *ProgramListener) ExitMulDivBinaryExpression(c *parser.MulDivBinaryExpressionContext) {
-	operator := c.GetOp().GetText()
-	right, left := l.Pop(), l.Pop()
-	l.Push(evalBinaryOperatorExpression(left, operator, right))
+	l.ExitBinaryOperator(c.GetOp())
 }
 
 func (l *ProgramListener) ExitAddSubBinaryExpression(c *parser.AddSubBinaryExpressionContext) {
-	operator := c.GetOp().GetText()
-	right, left := l.Pop(), l.Pop()
+	l.ExitBinaryOperator(c.GetOp())
+}
+
+func (l *ProgramListener) ExitLesGreBinaryExpression(c *parser.LesGreBinaryExpressionContext) {
+	l.ExitBinaryOperator(c.GetOp())
+}
+
+func (l *ProgramListener) ExitEqualityBinaryExpression(c *parser.EqualityBinaryExpressionContext) {
+	l.ExitBinaryOperator(c.GetOp())
+}
+
+func (l *ProgramListener) ExitBinaryOperator(opToken antlr.Token) {
+	operator := opToken.GetText()
+
+	right := l.Pop()
+	if isError(right) {
+		l.Push(right)
+		return
+	}
+
+	left := l.Pop()
+	if isError(left) {
+		l.Push(left)
+		return
+	}
+
 	l.Push(evalBinaryOperatorExpression(left, operator, right))
 }
 
@@ -81,6 +105,12 @@ func evalBinaryOperatorExpression(left object.Object, operator string, right obj
 	switch {
 	case left.Type() == object.INTEGER_OBJ && right.Type() == object.INTEGER_OBJ:
 		return evalIntegerBinaryOperatorExpression(left, operator, right)
+	case operator == "==":
+		return nativeBoolToBoolean(left == right)
+	case operator == "!=":
+		return nativeBoolToBoolean(left != right)
+	case left.Type() != right.Type():
+		return newError("type mismatch: %s %s %s", left.Type(), operator, right.Type())
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -99,6 +129,14 @@ func evalIntegerBinaryOperatorExpression(left object.Object, operator string, ri
 		return &object.Integer{Value: leftValue * rightValue}
 	case "/":
 		return &object.Integer{Value: leftValue / rightValue}
+	case "<":
+		return nativeBoolToBoolean(leftValue < rightValue)
+	case ">":
+		return nativeBoolToBoolean(leftValue > rightValue)
+	case "==":
+		return nativeBoolToBoolean(leftValue == rightValue)
+	case "!=":
+		return nativeBoolToBoolean(leftValue != rightValue)
 	default:
 		return newError("unknown operator: %s %s %s", left.Type(), operator, right.Type())
 	}
@@ -136,4 +174,8 @@ func nativeBoolToBoolean(b bool) object.Object {
 
 func newError(format string, a ...interface{}) *object.Error {
 	return &object.Error{Message: fmt.Sprintf(format, a...)}
+}
+
+func isError(e object.Object) bool {
+	return e.Type() == object.ERROR_OBJ
 }
