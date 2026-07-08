@@ -105,7 +105,16 @@ func evalIntegerBinaryOperatorExpression(left object.Object, operator string, ri
 }
 
 func evalBangOperatorExpression(right object.Object) object.Object {
-	return NULL
+	switch right {
+	case TRUE:
+		return FALSE
+	case FALSE:
+		return TRUE
+	case NULL:
+		return TRUE
+	default:
+		return FALSE
+	}
 }
 
 func evalNegationOperatorExpression(right object.Object) object.Object {
